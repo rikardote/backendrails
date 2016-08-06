@@ -1,1 +1,13 @@
-%h1 Bienvenido a la pagina
+.top-space
+	.row.center-xs
+		.col-xs-10.col-md-10
+			.row
+				.col-lg-2.col-sm-3.col-xs-10
+					%ul.remove-bullet-points.text-left
+						%li=link_to "Explorar", "#"
+						%li=link_to "Sugerencias", "#"
+				.col-xs-10.col-sm
+					.white.large-padding
+						=render "posts/form"
+					#posts
+						=render @posts
