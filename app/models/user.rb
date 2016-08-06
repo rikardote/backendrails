@@ -22,38 +22,59 @@
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
 #
-
 class User < ApplicationRecord
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :trackable, :validatable, :omniauthable,
-    	 :omniauth_providers => [:facebook]
-
-  validates :username, presence: true, uniqueness: true, length: {in: 3..12}
+         :recoverable, :rememberable, :trackable, :validatable,:omniauthable,
+         :omniauth_providers => [:facebook]
+  
+  validates :username, presence: true,uniqueness: true,length: {in: 3..12}
   validate :validate_username_regex
 
-  has_many :post
-  has_attached_file :cover, styles: { medium: "800x600>", thumb: "400x300>" }, default_url: "/images/:style/missing_cover.jpg"
-  has_attached_file :avatar, styles: { medium: "300x300>", thumb: "100x100>" }, default_url: "/images/:style/minion.jpg"
-  validates_attachment_content_type :avatar, content_type: /\Aimage\/.*\Z/
-  validates_attachment_content_type :cover, content_type: /\Aimage\/.*\Z/
+  has_many :posts
+  has_many :friendships
+  has_many :followers,class_name: "Friendship",foreign_key: "friend_id"
 
-  def self.from_omniauth(auth)
- 		where(provider: auth[:provider], uid:auth[:uid]).first_or_create do |user|
- 			if auth[:info]
- 				user.email = auth[:info][:email]
- 				user.name = auth[:info][:name]
- 			end
- 			user.password = Devise.friendly_token[0,20]
- 		end
+  has_many :friends_added, through: :friendships, source: :friend
+  has_many :friends_who_added,through: :friendships, source: :user
+
+  has_attached_file :avatar,styles: {thumb: "100x100",medium:"300x300"},default_url:"/images/:style/minion.jpg" 
+  validates_attachment_content_type :avatar,content_type: /\Aimage\/.*\Z/
+
+  has_attached_file :cover,styles: {thumb: "400x300",medium:"800x600"},default_url:"/images/:style/missing_cover.jpg" 
+  validates_attachment_content_type :cover,content_type: /\Aimage\/.*\Z/
+
+  def friend_ids
+    # [12,123,12,3123] => friend_id 
+    #Yo soy el user => friend_id
+    Friendship.active.where(user:self).pluck(:friend_id)
   end
 
-	private
-  	def validate_username_regex
-  		unless username =~ /\A[a-zA-Z]*[a-zA-Z][a-zA-Z0-9_]*\z/
+  def user_ids
+    #Yo soy el friend => user_id
+    Friendship.active.where(friend:self).pluck(:user_id)
+  end
+
+  def self.from_omniauth(auth)
+    where(provider: auth[:provider], uid:auth[:uid]).first_or_create do |user|
+      if auth[:info]
+        user.email = auth[:info][:email]
+        user.name = auth[:info][:name]
+      end
+      user.password = Devise.friendly_token[0,20]
+    end
+  end
+
+  def my_friend?(friend)
+    Friendship.friends?(self,friend)
+  end
+
+  private
+    def validate_username_regex
+      unless username =~ /\A[a-zA-Z]*[a-zA-Z][a-zA-Z0-9_]*\z/
         errors.add(:username,"El username debe iniciar con una letra")
         errors.add(:username,"El username sólo puede contener _,letras y números")
       end
-	  end
+    end
 end
